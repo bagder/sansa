@@ -1,0 +1,142 @@
+
+Sansa e200 series FM tuner interface v0.2
+
+by MrH 2006
+
+
+
+Disclaimer
+----------
+
+I have the Euro model, which does not include a tuner, i.e. I haven't
+tested this. I have 99.9% confidence on it though. If you find any
+errors or omissions, let me know.
+
+
+
+The tuner
+---------
+
+The FM tuner on Sansa e200 series is a Sanyo LV24020LP (U.S. models
+only). At the time of writing this a proper register level datasheet
+of it is available at:
+
+http://www.semiconductor-sanyo.com/ds_e/ENA0070.pdf
+
+Note that there also exists a shorter version of the datasheet (without
+register descriptions) named 'ENA0070A.pdf' floating around in the web.
+Be sure to get the real one.
+
+
+
+Control interface
+-----------------
+
+The tuner is controlled via a 3-wire syncronous serial bus implemented
+by bit-banging GPIO pins. It uses following pins:
+
+name	port	pin
+-----------------------------------------
+NR_W	H	3  (0 = read, 1 = write)
+CLOCK	H	4
+DATA	H	5
+
+The data is sent and received 8 bits at a time LSB first. When writing,
+the data is driven on the bus after the falling edge of the clock and
+sampled by the tuner on the rising edge. When reading the tuner drives
+the data on the bus after the falling edge of the clock and the CPU
+samples the data on the rising edge. See the datasheet for diagrams.
+
+
+
+Examples
+--------
+
+Note that these examples are provided just to give an idea how to
+drive the interface. Refer to the actual datasheet for real min/max
+timings etc.
+
+
+Init
+----
+
+clear bit 11 of 0x70000020 /* what does this do? */
+wait 5 usec
+set CLOCK high, as output and enable it
+set DATA as input and enable it
+set NR_W low, as output and enable it
+wait 5 usec
+done
+
+
+Writing a bit
+-------------
+
+set CLOCK low
+set the bit on DATA
+wait 1 usec
+set CLOCK high
+wait 1 usec
+done
+
+
+Reading a bit
+-------------
+
+set CLOCK low
+wait 1 usec
+read the bit on DATA
+set clock high
+wait 1 usec
+done
+
+
+Writing a byte
+--------------
+
+write 8 bits LSB first
+done
+
+
+Reading a byte
+--------------
+
+read 8 bits LSB first
+done
+
+
+Writing a register
+------------------
+
+set NR_W high (write)
+set DATA as output
+wait 1 usec
+write register value (byte)  /* really in this order ?? */
+write register number (byte)
+set DATA as input
+set NR_W low (read)
+wait 1 usec
+done
+
+
+Reading a register
+------------------
+
+set NR_W high (write)
+set DATA as output
+wait 1 usec
+write register number (byte)
+set DATA as input
+set NR_W low (read)
+wait 1 usec
+read register value (byte)
+done
+
+
+
+Register descriptions
+---------------------
+
+See the datasheet.
+
+

@@ -1,0 +1,13 @@
+device: C200
+version: 1.01.06
+region: Americas
+total files: 3
+Filename: firmware.mi4
+Size: 3110912
+Target: /
+Filename: Font.fnt
+Size: 1236708
+Target: /
+Filename: pribootLoader.rom
+Size: 140828
+Target: /

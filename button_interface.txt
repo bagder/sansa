@@ -1,0 +1,28 @@
+
+Sansa E200 button interface v0.2
+
+by MrH 2006
+
+
+Buttons are connected to GPIOs like this
+
+
+button		port	pin	active
+------------------------------------------
+up (play)	F	5	0
+down		F	1	0
+left		F	3	0
+right		F	2	0
+center		F	4	0
+
+rec		F	0	0
+power		F	6	1
+hold		F	7	1
+
+
+The scrollwheel is connected to GPIO port H
+pins 7 and 6 (set as input).
+
+Rotating clockwise		01 -> 00 -> 10 -> 11
+Rotating counter-clockwise	11 -> 10 -> 00 -> 01
+

@@ -1,0 +1,352 @@
+
+
+PP5024 Semi-Independent DMA interface v0.6
+
+by MrH 2007
+
+
+
+
+Disclaimer
+----------
+
+All information in this document is derived from reverse engineering the
+original Sansa bootloader and experimenting on the real HW. I have never
+had any access to any private PortalPlayer documentation.
+
+This information may or may not be also applicable to other PortalPlayer
+processors.
+
+I may have understood anything or everything wrong. If you choose to use
+this information for any purpose whatsoever you do so on your own
+responsibility.
+
+
+
+General
+-------
+
+The PP5024 seems to include a four channel semi-independent DMA engine.
+I am calling it semi-independent because while the DMA engine is
+quite programmable and isn't tightly tied to any specific device it
+still has some quite interesting limitations. The term is completely
+my own, I have no idea whatsoever what it is officially called by PP.
+
+The Sansa e200-series original firmware at least uses one of these
+channels to read/write the NAND (+microSD). Maybe one could also be
+used to e.g. drive the i2s audio interface etc.
+
+
+
+Capabilities/limitations
+------------------------
+
+The DMA engine seems to be designed to transfer data between RAM and a
+device located in the 0x70000000-0x7000fffc range. It can neither access
+the other device spaces below 0x70000000 or above 0xc0000000 nor can it
+do pure RAM <-> RAM transfers.
+
+The DMA does not see the remapped memory addresses (unless it can be
+activated via some method I do not know about) so a real physical RAM
+address has to be used.
+
+Also like usual in PP chips the DMA also is *not* cache coherent (unless
+that too can be activated somehow) so the software has to either use
+uncached RAM or execute proper cache flushes/invalidates when necessary.
+
+
+
+Channels
+--------
+
+There are four separate DMA channels available with following register
+base adrresses:
+
+channel		base
+---------------------------------
+0		0x6000b000
+1		0x6000b020
+2		0x6000b040
+3		0x6000b060
+
+From 0x6000b080 onwards there seems to appear mirrors of the real channels.
+The number of available channels may be different on some older/newer PP
+processors (if available at all).
+
+
+Common DMA registers
+--------------------
+
+0x6000a000	SIDMA_MASTER_CONTROL
+
+	bit 0-31	unused??
+	bit 31		MASTER_ENABLE (1 = DMA enabled)
+
+
+0x6000a004	SIDMA_MASTER_STATUS
+
+	bit 0-23	??
+	bit 24		CHANNEL_0_ACTIVE
+	bit 25		CHANNEL_1_ACTIVE
+	bit 26		CHANNEL_2_ACTIVE
+	bit 27		CHANNEL_3_ACTIVE
+	bit 28-31	??
+
+
+0x6000a008	SIDMA_DRQ_STATUS?
+
+	bit 0		??
+	bit 1		??
+	bit 2		I2S_OUTPUT?
+	bit 3		??
+	bit 4		??
+	bit 5		??
+	bit 6		??
+	bit 7		??
+	bit 8		??
+	bit 9		??
+	bit 10		??
+	bit 11		??
+	bit 12		??
+	bit 13		SD_HOST_CONTROLLER_DRQ?
+	bit 14		??
+	bit 15		??
+	bit 16-31	unknown?
+
+	*** As far as I can tell there seems to be 16 DMA request lines.
+	*** The DRQ #13 seems to be used by the SecureDigital host
+	*** controller (used by the Sansa OF). Also DRQ #2 seems to have
+	*** different value when the music is playing than when it's not,
+	*** so it just might have something to do with the I2S bus.
+	***
+	*** I currently have no idea what the other DRQ lines are used
+	*** for, but presumably they are for other devices in 0x70000000-
+	*** 0x7000ffff range.
+	***
+	*** Note!: This whole DRQ idea is a lot of guesswork and may
+	***        very well be just a figment of my wild imagination.
+	***        I really cannot prove much of it (yet).
+
+
+0x6000a00c	?? (0x200)
+
+
+0x6000a010	??
+
+	bit 0-17	??
+	bit 18-31	unused?
+
+
+
+DMA channel registers
+---------------------
+
+BASE+0x00	SIDMA_CMD
+
+	bit 0-15	TRANSFER_SIZE (value + 4 bytes will be transfered)
+	bit 16-19	DRQ_NUM (DRQ bit to wait for, see bit 24)
+	bit 20-23	?? (OF uses 0)
+	bit 24		WAIT_FOR_DRQ
+	bit 25		WAIT_FOR_??? (OF uses 0)
+	bit 26		STOP_ON_COMPLETE (1 = stop, 0 = restart)
+	bit 27		DIRECTION (0 = HW -> RAM, 1 = RAM -> HW)
+	bit 28		SLEEP_WAIT (sleep the core until complete)
+	bit 29		unused??
+	bit 30		INTR_ON_COMPLETE (1 = raise interrupt when done)
+	bit 31		TRANSFER_START
+
+	*** There still is the unknown WAIT_FOR bit 25. In my tests if
+	*** this bit is set, the transfer just won't start. Maybe it uses
+	*** bits 20-23 of this register and/or bits 16-31 of SIDMA_DRQ_STATUS
+	*** for something too.
+
+
+BASE+0x04	SIDMA_STATUS
+
+	bit 0-15	TRANSFER_REMAIN (decremented while DMA in progress)
+	bit 16-29	??
+	bit 30		INTR_PENDING (bit 26 at 0x60004010, read clears)
+	bit 31		DMA_ACTIVE (polled by OF)
+
+
+BASE+0x08	?? (read-only mirror of SIDMA_INCR ?)
+
+
+BASE+0x0c	?? (read-only mirror of SIDMA_INCR ?)
+
+
+BASE+0x10	SIDMA_RAMPTR
+
+	bit 0-31	memory address
+
+
+BASE+0x14	SIDMA_FLAGS
+
+	bits  0-15	unused?
+	bits  16-19	?? (OF uses 0)
+	bits  20-23	unused?
+	bit   24	IS_ALIGNED?? (is SIDMA_RAMPTR 16-byte aligned)
+	bit   25	?? (OF uses 0)
+	bit   26	?? (OF uses 1)
+	bit   27-31	unused?
+
+	*** I suspect that bits 25 and 26 may specify the burst length
+	*** i.e. how much data to transfer for each DRQ assertion. It
+	*** is a bit hard to fully prove this without finding some nice
+	*** way to trigger single DRQs. If my guess is correct, it would
+	*** probably be something like 0 = 4-bytes, 1 = 8-bytes,
+	*** 2 = 16-bytes and 3 = 32-bytes, or so.
+
+
+BASE+0x18	SIDMA_HWPTR
+
+	bit 0-31	HW register base address (see SIDMA_INCR),
+			forced by HW into 0x70000000 - 0x7000fffc range
+
+
+BASE+0x1c	SIDMA_INCR (OF uses 0x10010000)
+
+	bits  0-15	unused?
+	bits  16-18	REG_RANGE (see below)
+	bits  19-27	unused?
+	bits  28-30	REG_WIDTH (see below)
+	bit   31	unused?
+
+
+REG_RANGE -> 	how many HW registers to use i.e. SIDMA_HWPTR is 
+		incremented by 4 after reading/writing 32-bits of data
+		until it has been incremented 'range' times at which
+		point it is reset back to the original addess
+
+value		range
+-------------------------------------------------------------------------
+0		unlimited?
+1		1 (do not increment)
+2		2 (alternate between SIDMA_HWPTR and SIDMA_HWPTR + 4)
+3-7		2 ^ (value - 1) [power, not exclusive or]
+
+
+REG_WIDTH ->	the width of the register access
+
+value		width
+--------------------------
+0		8-bit
+1		16-bit
+2		32-bit
+3-7		32-bit ?? (I have not seen any difference between 2-7)
+
+
+Note that using e.g. 16-bit width and register range of 2 seems to
+cause the first register to be accessed twice then the second twice,
+then the first again twice etc. i.e. the register is incremented only
+after 4 bytes, not after every access!
+
+
+
+Streaming DMA
+-------------
+
+It seems thar after the DMA is started it is possible to change e.g.
+the SIDMA_RAMPTR without affecting the ongoing transfer in any way.
+This makes it possible to use only one channel to continuously stream
+data to/from a device. Like e.g.
+
+1. Configure the destination device
+2. Setup SIDMA_FLAGS, SIDMA_HWPTR and SIDMA_INCR
+3. Generate first ram buffer and set it to SIDMA_RAMPTR
+4. Start the transfer (in non-stop mode, interrupt enabled)
+5. Immediately generate next ram buffer and set it to SIDMA_RAMPTR
+6. Wait for DMA interrupt
+7. Repeat from step 5
+
+A new buffer of data can be always generated (if needed) and set up
+to the DMA channel while the previous one is being transfered. This
+way the DMA can seamlessly continue from a new buffer when it is
+finished with the current one.
+
+
+
+
+
+*** The operations below are here just to give an example how the OF
+*** uses the DMA engine.
+
+
+Sansa NAND (SecureDigital) DMA
+------------------------------
+
+The original Sansa bootloader code uses the DMA channel 0 to handle the
+bulk of the NAND transfers. It seems to align the memory buffers by 32
+bytes and the HW seems to have some sort of special handling at least
+for pointers aligned by 16 bytes.
+
+Consult my "Sandisk E200 series NAND interface" document for details of
+the NAND interface if needed.
+
+
+DMA read setup
+--------------
+
+Write the NAND data register address to SIDMA_HWPTR
+
+Write the destination memory address to SIDMA_RAMPTR
+
+Write 0x10010000 to SIDMA_INCR (one 16-bit register)
+
+If memory address is aligned by 16
+
+	Write 0x5000000 to SIDMA_FLAGS
+
+Else
+
+	Write 0x4000000 to SIDMA_FLAGS
+
+Write (0x850d0000 | size) to SIDMA_CMD
+
+Read setup done
+
+
+
+DMA write setup
+---------------
+
+Write the data register address to SIDMA_HWPTR
+
+Write the destination memory address to SIDMA_RAMPTR
+
+Write 0x10010000 to SIDMA_INCR (one 16-bit register)
+
+If memory address is aligned by 16
+
+	Write 0x5000000 to SIDMA_FLAGS
+
+Else
+
+	Write 0x4000000 to SIDMA_FLAGS
+
+Write (0x8d0d0000 | size) to SIDMA_CMD
+
+Write setup done
+
+
+
+DMA wait
+--------
+
+Setup the transfer (read/write)
+
+Write 0x80000000 to SIDMA_ENABLE
+
+Wait until SIDMA_STATUS not DMA_ACTIVE (busyloop)
+
+DMA done
+
+
+
+
+
+
+Once again, that's all we have time for now. Be sure to join
+us again next time for more fantastic stories from the land of
+Gnireenigne Esrever!
+

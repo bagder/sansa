@@ -1,0 +1,168 @@
+
+Confidentiality Agreement
+
+between
+
+and
+
+
+1.1.1.1.1.1.1.1 austriamicrosystems AG
+
+1.1.1.1.1.1.1.2 Schloss Premstaetten
+
+  A-8141 Unterpremstaetten
+
+1.1.1.1.1.2 Austria
+
+  and its affiliates
+
+  (together or individually hereinafter referred to as "the party" or "the
+parties" as appropriate)
+
+WHEREAS the parties shall, for their mutual benefit and in connection with
+their cooperation in the development and manufacture of integrated
+circuits, exchange and thereby disclose to each other confidential
+information, the parties seek to secure the confidentiality of such
+information by the terms of and in accordance with this Agreement.
+
+IN CONSIDERATION of such exchange and cooperation IT IS HEREBY AGREED as
+follows:
+
+2 Confidentiality
+
+The parties agree to keep all disclosed confidential information strictly
+confidential. Without prejudice to the generality of the aforesaid, the
+obligation hereunder shall apply in particular to all information which is
+marked as being confidential and/or that information, of which within 10
+days of its disclosure, notice in writing is given by the disclosing party
+that it shall be treated as confidential. The disclosure of such
+information should be confirmed in writing. Such information will
+ordinarily be disclosed to the other party in written form by way of
+software, draft documentation, drawings or technical specifications on data
+storage modules such as magnetic tapes or diskettes via data communication
+or by post. Data relating to individuals shall (in accordance with
+applicable Data Protection laws) also be treated as confidential as will
+all information relating to business secrets such as research and
+development matters and other business affairs of the other party, its
+associated companies or parties contracting with such party.
+
+
+The confidentiality obligation shall not apply to information which
+the parties already hold, without owing any duty of confidentiality, at the
+time of disclosure
+
+is in the public domain
+
+the parties legitimately receive from third parties without being subject
+to any confidentiality obligations
+
+the parties develop or have developed independently of any such
+confidential information
+
+the disclosing party has disclaimed in writing any rights to
+confidentiality
+
+are provided after the termination of this Agreement
+
+3 Securing Confidentiality
+
+The parties shall use all reasonable endeavours to maintain confidentiality
+and in particular confidential information shall only be given or
+communicated to such employees who necessarily and properly require such
+information to perform their duties under their employment.
+
+The parties shall keep all documentation and records which contain
+confidential information in a secure (locked) and safe place.
+
+4 Acquisition of Information from the Business Operations of the Parties
+
+The parties undertake to keep all internal business information of which
+they, their employees or representatives become aware during the
+performance of their duties at the other parties' place of business,
+strictly confidential and not to divulge the same to any third party. This
+shall apply in particular to all internal information relating to
+technical, design, manufacture, operational or organisational matters.
+
+5 Extension of the Obligation of Confidentiality to Third Parties
+
+If a party intends to sub-contract to a third party and disclosure of
+confidential information to such third party is necessitated thereby, the
+party shall first obtain the written consent of the other party thereto.
+The disclosing party and the sub-contractor shall prior to such disclosure
+enter into a confidentiality agreement in the same form as this Agreement.
+
+If a party is directly or indirectly involved whether through participation
+or cooperation in the development and/or production of integrated circuits,
+the obligation of confidentiality hereunder shall apply versus the
+pertinent business and its employees.
+
+6 Return of the Confidential Documentation
+
+After termination of each contractually separate project, the parties shall
+upon request return, destroy or put in safe-keeping specified information.
+
+7 Patentable/Registrable Inventions
+
+The duty of confidentiality also applies to information and documentation
+relating to an as yet unregistered or unpatented invention. Such
+documentation also constitutes confidential documentation and the party
+disclosing the same reserves all rights therein. In particular it is
+confirmed that no rights whatsoever are transferred or relinquished to the
+other party by the disclosure of such information.
+
+8 General
+
+In the event of any conflict between this Agreement and any other
+contractual terms between the parties, the terms of this Agreement shall
+prevail.
+
+No variation to the terms hereof shall be valid unless such variation is in
+writing and signed by a duly authorised representative of each party.
+
+The invalidity of any part of this Agreement shall not affect the validity
+of the rest of this Agreement. In the event of any part of this Agreement
+being declared invalid or void, the parties shall in good faith negotiate
+substitute wording which reflects as far and as near as possible the
+parties' initial intention.
+
+9 Law and Jurisdiction
+
+The courts of law in the jurisdiction of the plaintiff shall have exclusive
+jurisdiction for any disputes arising herefrom. This Agreement shall be
+governed by and construed in accordance with the law of the jurisdiction of
+the plaintiff.
+
+10 Commencement and Duration of this Agreement
+
+This Agreement shall commence on the later of the two dates of signature of
+the parties below being the date when both parties have duly executed this
+Agreement. Subject to the following this Agreement shall continue in force
+for a period of 7 (seven) years and shall automatically expire thereafter.
+Either party may terminate this Agreement by giving to the other 90 days
+prior notice thereof in writing. However, the obligations hereunder shall
+not be affected by such termination or expiration and shall continue in
+full force and effect with respect to information disclosed prior to such
+termination or expiration until such time that all information disclosed
+hereunder has become public domain by no breach of this agreement.
+
+|                                   |                                   |
+|austriamicrosystems AG             |                                   |
+|           |                       |          |                        |
+|Name:      |                       |Name:     |                        |
+|           |                       |          |                        |
+|Position:  |                       |Position: |                        |
+|           |being duly authorised  |          |being duly authorised on|
+|           |on behalf of the party |          |behalf of the party to  |
+|           |to execute this        |          |execute this Agreement  |
+|           |Agreement              |          |                        |
+|           |                       |          |                        |
+|Signature: |                       |Signature:|                        |
+|Date:      |                       |Date:     |                        |
+|           |                       |          |                        |
+|Agreement  |                       |          |                        |
+|No:        |                       |          |                        |
+
+
+Edition November 2002
+
+

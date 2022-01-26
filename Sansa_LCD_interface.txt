@@ -1,0 +1,360 @@
+
+Sansa E200 LCD interface v0.9
+
+by MrH 2006
+
+
+
+
+Disclaimer
+----------
+
+There is a lot of unknowns and guesses in this document. That is mainly
+because the HW itself is quite complex and on the other hand the interface
+is very different from any other PortalPlayer based player supported by
+open source software, so I don't really have anything to compare notes
+with. All information in this document was gathered by examining the
+original Sansa firmware and bootloader and testing the theories on an
+actual E260. While it 'works for me'(tm) your mileage may vary.
+
+If you find any errors or omissions be sure to let the world know
+what a crappy job I have done again.
+
+
+
+Attachment
+----------
+
+The LCD on E200 series seems to be attached to some sort of internal
+controller on the PP chip. That part handles the output of the actual
+framebuffer pixels to the LCD via some sort of DMA. So unlike e.g.
+H10 or iPods there is no per-pixel LCD update routine. More details
+about this later in the document.
+
+In addition the LCD itself seems to have some intelligence. This
+control interface looks like some sort of three wire synchronous
+serial bus and is implemented by bit-banging GPIO pins. This will
+also be decribed in full detail in following chapters.
+
+
+
+3-wire bus
+----------
+
+Note! I have not yet reverse engineered any routine which would use
+this interface to read anything, only write. I just guessed that
+there is also a 'read' functionality and it uses a different pin.
+Why else would there be an input pin in the group (see below)?
+
+
+Pins for the bus
+----------------
+
+GPIO-D pin 6	Chip Select?		output (active low)
+
+GPIO-B pin 5	Serial Clock		output
+GPIO-B pin 6	Serial Data IN?		input
+GPIO-B pin 7	Serial Data OUT		output
+
+
+Writing single byte
+-------------------
+
+When the bus is idle the clock and OUT pins are kept in logical 1
+(i.e. high). The data is transfered in the unit of 8 bits, most
+significant bit first. Start/stop bits or parity are not used (it's
+a synchronous bus after all). The base frequency of the clock is
+500 kHz, alhough keep in mind that all the presented timings are
+just the ones the original firmware uses. Actual minimum and/or
+maximum values of the HW may be different.
+
+The data is driven on the bus after falling edge and the LCD samples
+it on the rising edge of the clock.
+
+
+Diagram (use fixed font)
+
+
+bit  idle   7       6       5       4       3       2       1       0
+     ___     ___     ___     ___     ___     ___     ___     ___     ____...
+CLK     |___|   |___|   |___|   |___|   |___|   |___|   |___|   |___|
+
+     ____________ _______ _______ _______ _______ _______ _______ _______...
+OUT      \_______X_______X_______X_______X_______X_______X_______X_______...
+
+        >---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---<
+         1us 1us 1us 1us 1us 1us 1us 1us 1us 1us 1us 1us 1us 1us 1us 1us
+
+
+After whole byte is sent (i.e. the clock cycle of bit 0 is complete)
+the bus is kept idle for 3 usec.
+
+
+Writing messages
+----------------
+
+1. Set bus idle
+2. Wait 1 usec
+3. Pull Chip Select low (0)
+4. Wait 10 usec
+5. Write the message one byte by byte.
+6. Set Chip Select high (1)
+7. Wait 1 usec
+8. Set bus idle
+
+
+Message structure
+-----------------
+
+The LCD seems to use three-byte messages. The message consists of 8 bit
+'command' and 16 bits of 'data' (msb first). There seems to be at least
+these two 'commands':
+
+		cmd	data1		data2
+
+Select reg	0x70	[reg# msb]	[reg# lsb]
+Write data	0x72	[data msb]	[data lsb]
+
+
+Writing to LCD register (at least I think that's what happens)
+--------------------------------------------------------------
+
+Normally LCD register is written by sending a 'Select reg' message
+followed by a 'Write data' message with the register number and the
+data respectively. There is one exception, where the data is not
+sent at all i.e. somehow selecting the register already does something
+useful (see the init sequence).
+
+
+
+LCD theory of operation
+-----------------------
+
+The LCD is updated by some kind of DMA engine. The DMA can be configured
+to fetch the framebuffer data from any SDRAM buffer. Theoretically
+this might have some caching issues i.e. I am not sure if the DMA is
+automatically coherent with the data in the CPU/COP caches. It most
+likely isn't, but I have not verified this in any way. Also I suspect
+the DMA does not see the SW configured memory mappings i.e. the address
+configured to the DMA should be the the real HW address of the buffer,
+but I have not actually verified this either.
+
+Updating the LCD after it has been initialized is very simple: just
+write the data to the framebuffer. The original firmware also
+conditionally sets one bit in a LCD controller register when it
+wishes to update the LCD, but I have not verified if this is really
+needed or not. The update procedure is show in detail later in the
+document.
+
+
+
+LCD controller registers
+------------------------
+
+I have not experimentd with these and it's very hard to guess what
+each register does based on pure deduction so I have named them
+here only by a number to be able to refer to them. I will update
+the list if at some point I discover the real purpose of some
+register.
+
+0xc2000000	LCD_REG_0
+
+0xc2000004	LCD_REG_1
+
+0xc2000008	LCD_REG_2
+
+0xc200000c	LCD_REG_3
+
+0xc2000010	LCD_REG_4
+
+0xc2000014	LCD_REG_5
+
+0xc2000018	LCD_REG_6
+
+0xc200001c	LCD_REG_7
+
+0xc2000020	LCD_REG_8
+
+0xc2000024	LCD_REG_9
+
+0xc2000028	LCD_FB_BASE_REG	(the HW address of the framebuffer)
+
+
+
+Initializing
+------------
+
+1. Allocate/initialize the frambuffer
+2. Initialize the LCD controller
+3. Initialize the LCD
+
+Details of the initializations are shown below. These have a lot of
+unknowns and are basically just mimicing the init sequences in the
+original firmware.
+
+
+Initializing LCD controller
+---------------------------
+
+Set bit 28 at 0x70000084
+Clear bit 28 at 0x70000080
+
+Set bits 31-26 at 0x70000010 to 0x15 (010101)
+Set bits 31-28 at 0x70000014 to 0x5  (0101)
+
+Clear bits 11-10 at 0x70000020
+
+Set bit 26 at 0x6000600c	// enable controller?
+
+Write 0x6 to 0x600060d0
+
+Set bit 26 at 0x60006004	// reset controller?
+
+Clear bit 14 at 0x0x70000020
+
+Initialize LCD serial bus
+
+Clear bit 26 at 0x60006004	// clear reset
+
+Wait 1 msec
+
+Set bits 31-24 of LCD_REG_0 to 0x22
+Set bits 23-16 of LCD_REG_0 to 0x14
+Set bits 13-8  of LCD_REG_0 to 0x3
+Set bits 5-0   of LCD_REG_0 to 0xa
+
+Set bits 31-24 of LCD_REG_1 to 0
+Set bits 23-16 of LCD_REG_1 to 0
+Set bits 15-10 of LCD_REG_1 to 0x2 (000010)
+Set bits 9-0   of LCD_REG_1 to 0xdd
+
+Set bit 5 of LCD_REG_2
+Set bit 6 of LCD_REG_2
+Set bits 9-8 of LCD_REG_2 to 0x2
+
+Set bits 26-16 of LCD_REG_7 to 0
+Set bits 10-0  of LCD_REG_7 to 0
+
+Set bits 26-16 of LCD_REG_8 to 0xb0
+Set bits 10-0  of LCD_REG_8 t0 0xde	// x-y geometry?
+
+Set bits 3-2 of LCD_REG_5
+Set bits 6-4 of LCD_REG_5 to 0x3 (011)
+Set bit 1 of LCD_REG_5
+
+Clear bit 15 of LCD_REG_6
+Set bits 11-9 of LCD_REG_6
+Set bits 7-5 of LCD_REG_6 to 0x4 (100)
+Set bit 4 of LCD_REG_6
+
+Clear bit 7 of LCD_REG_5
+
+Write the HW address of the framebuffer to LCD_FB_BASE_REG
+
+Wait 100 msec
+
+Done
+
+
+Initializing LCD
+----------------
+
+Clear bit 28 at 0x70000080
+
+Wait 10 msec
+
+Set bit 28 at 0x70000080
+
+Wait 10 msec
+
+Write 0x4444 to reg 16	// see 'Writing to LCD register'
+Write 0x0001 ro reg 17
+Write 0x0003 to reg 18
+Write 0x1119 to reg 19
+Write 0x0013 to reg 18
+
+Wait 50 msec
+
+Write 0x4440 to reg 16
+Write 0x3119 to reg 19
+
+Wait 150 msec
+
+Write 0x101b to reg 1
+Write 0x0700 to reg 2
+Write 0x6020 to reg 3
+Write 0x0000 to reg 4
+Write 0x0000 to reg 5
+Write 0x0102 to reg 8
+Write 0x0000 to reg 9
+Write 0x4400 to reg 11 
+Write 0x0110 to reg 12
+
+Write 0x0000     to reg 64
+Write 0x0000     to reg 65
+Write (219 << 8) to reg 66	// screen resolution? 
+Write 0x0000     to reg 67
+Write (175 << 8) to reg 68
+Write (219 << 8) to reg 69
+
+Write 0x0000 to reg 48
+Write 0x0704 to reg 49
+Write 0x0107 to reg 50
+Write 0x0704 to reg 51
+Write 0x0107 to reg 52
+Write 0x0002 to reg 53
+Write 0x0707 to reg 54
+Write 0x0503 to reg 55
+Write 0x0000 to reg 56
+Write 0x0000 to reg 57
+
+Write 175 to reg 33
+
+Write 0x0110 to reg 12
+
+Write 0x4740 to reg 16
+
+Write 0x0045 to reg 7
+
+Wait 50 msec
+
+Write 0x0065 to reg 7
+Write 0x0067 to reg 7
+
+Wait 50 msec
+
+Write 0x0077 to reg 7
+
+Select reg 34		// Send a 'Select reg' message
+
+Done
+
+
+Updating LCD
+------------
+
+1. Write data to framebuffer
+2. If bit 0 of LCD_REG_6 is not set -> set it
+
+
+
+Missing stuff
+-------------
+
+There is a lot of things currently unknown. Controlling the LCD power?
+Backlight? Contrast etc? These will require some experimentation
+or maybe e.g. the LCD panel manufacturer publishes some documents,
+which might help?
+
+
+
+
+
+
+
+
+
+
+
+That's all (for now) folks!
+

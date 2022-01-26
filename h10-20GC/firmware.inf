@@ -1,0 +1,33 @@
+########################################################################################
+##################################  IRIVER H10 20GC UMS  ###############################
+########################################################################################
+[IRIVER H10 20GC]
+SET_MODEL_NAME = H10
+SET_PROPERTY_FILE_POSITION = /System/H10_20GC.mi4
+PRODUCT_IMAGE_URL = http://www.iriverplus.com/tools/UMS/H/H10/H10_series.gif
+
+[IRIVER H10 20GC_ENG_MT]
+SET_MODEL_NAME = H10
+FIRMWARE_URL = http://www.iriverplus.com/tools/UMS/H/H10/H10_20GC_ENG_MT.ZIP
+FIRMWARE_VERSION = 2.51
+FIRMWARE_LANGUAGE = ENG
+FIRMWARE_MODE = MT
+REQUIRE_BURNKEY_UNTIL = 2.51
+
+
+
+[COPY_FILES_FOR_BURNKEY]
+FILES = BL_H10_20GC.hex; H10_20GC.mi4; h10_20gc_image.mi4; cjk12.fnt
+
+BL_H10_20GC.hex = /BL_H10_20GC.hex
+H10_20GC.mi4 = /System/H10_20GC.mi4
+H10_20GC_image.mi4 = /System/H10_20GC_image.mi4
+cjk12.fnt = /System/Font/cjk12.fnt
+
+
+[COPY_FILES]
+FILES = H10_20GC_image.mi4; cjk12.fnt
+
+H10_20GC_image.mi4 = /System/H10_20GC.mi4
+cjk12.fnt = /System/Font/cjk12.fnt
+

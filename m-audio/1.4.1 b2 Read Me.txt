@@ -1,0 +1,28 @@
+This readme covers MicroTrack 24/96 Firmware v1.4.1 b2
+
+NOTE: This is a beta release.  As such, we do not recommend using this release in a critical use environment.  Such use is at your own risk. 
+
+If you experience any issues with this release, please use our beta release support form to report it at:
+
+http://www.m-audio.com/index.php?do=support.betaform
+
+============================================================
+Installation Instructions:
+
+1) Connect the MicroTrack 24/96 to your Mac or PC (Please refer to your manual for details on this procedure).
+
+2) Copy the three files from this update, "PP5020.mi4", "BL_MPR.rom" and "Resources.arl," onto a properly formatted Compact Flash card to the root (top) directory of your MicroTrack 24/96 (Do not put them in a folder).
+
+3) Properly unmount the MicroTrack 24/96 from the computer (Again, please refer to your manual for complete instructions).
+
+4) On the MicroTrack 24/96, navigate to Main Menu > System > Firmware Update and press the NAV button.
+
+5) You will be asked to verify this action. Press the NAV button again to begin the firmware update. The MicroTrack will show a few messages on the screen while the update is in progress. The four LEDs around the level controls will flash sequentially during the update. When the firmware update is complete, the MicroTrack will automatically reboot. To verify the firmware update was executed, go to Main Menu > System > Version. If the firmware update was successful, it should now show Firmware 1.4.1 b2 and Bootloader 1.02 
+
+============================================================
+
+Issue(s) addressed by this release
+
+-  MP3 recordings would not play using Windows Media Player
+
+============================================================

@@ -1,0 +1,14 @@
+e2tPLUS - an extension to e200tool with NAND read and write access
+Virtuoso015 2008
+
+Disclaimer:
+This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.
+Any harm done to your computer or music player is not my fault.
+Use it at your own risk.
+
+
+Credits: 
+MrH , for having written such a wonderful tool which acted as a fantastic framework for this extension
+Rockbox community, for providing the NAND access code and other development tools (YOU ROCK !!!)
+JustShams, the guy who bricked his sansa e260v1 and called me in to unbrick it :P
+

@@ -1,0 +1,479 @@
+
+
+Sandisk E200 series NAND interface v0.8
+
+by MrH 2006, 2007
+
+
+
+
+Disclaimer
+----------
+
+
+*********************************************************
+
+In Sansa the bootloader is in the same NAND flash as the
+user data is. Making a mistake can 'brick' the device or
+at least make it require some loving care by a certified
+repair technician! In case this happens, take a look at
+e200tool.
+
+*********************************************************
+
+
+All informaion in this document is derived from reverse
+engineering the original bootloader and following documents:
+
+
+SanDisk Secure Digital Card, Product Manual v1.9
+(later editions contain *less* information)
+
+SD Physical Layer Simplified Specification v2.0
+
+
+So basically I guessed everything you see here and I can
+easily be wrong about anything or everything. Even the whole
+thing could be just a figment of my imagination. If you use
+this information for anything, you do so with your own
+responsibility. If you find something wrong here, be sure
+to let me know what a crappy job I have done so it won't
+happen again.
+
+
+
+Attachment
+----------
+
+The NAND is not attached to any NAND controller at all.
+Instead it uses SecureDigital Memoty Card protocol. This
+means that the mystery SanDisk chip located near the NAND
+chips is actually a custom SD <-> NAND bridge/device
+controller.
+
+It actually makes kind of sense. This way the custom chip
+will take care of the nasty details like wear levelling
+and it also promotes code reuse as the same code can be
+used to drive the microSD slot. And SanDisk is one of the
+companies behind the whole SD standard, so it's not like
+they had to look very far for the controller chip.
+
+Considering that the Sansa also has a microSD slot, I'd
+bet some of the GPIOs configured in the init sequence
+(or potentially some of the other registers) actually
+perform some sort of chip select function and allow to
+switch between the internal NAND and external SD card.
+
+
+
+Probable 'disk' geometry
+------------------------
+
+512 byte blocks
+
+The disk has two partitions, one for user data and one for
+system firmware, settings etc. The size of the firmware
+partition is 0xa000 blocks, the user data partition covers
+the rest of the device.
+
+The contents of the disk seem to be exactly the same as seen
+via the raw device (e.g. /dev/sdb on Linux) when running
+the original firmware in USB mode.
+
+
+Since in the original SD protocol the offset to the data is
+in bytes and only 32bits wide (i.e. can only address 4 Gb),
+the 6 and 8 Gb models seem to use a banked model. The bank
+is switched using a vendor specific command. The bank
+selection sequence is shown later in this document. When
+some bank has been selected all addresses in command
+arguments are considered to be relative to the start of
+that bank.
+
+The banking is probably very much non-standard, but I
+guess the design pre-dates SD 2.0 and SDHC specification.
+If driving an external card one should use SDHC spec
+instead, if large cards become available and are to be
+supported. Oh, and if external cards are to be supported,
+the HW will most likely allow also MMC support if so
+desired.
+
+
+bank#	blocks
+---------------------------
+0	0x000000-0x7a77ff
+1	0x7a7800-...
+
+So far the largest device is 8 Gb, which can be accessed
+via two banks. The current code does not have anything
+to support more banks. If they ever expand beyond 8 Gb
+they will need a third bank (or they just go with SDHC
+instead).
+
+
+
+HW registers (16 bits each)
+---------------------------
+
+0x70008204	STATUS_REG
+
+(I am guessing a lot here, if you know better let me know)
+
+	bits 0-5	error bits? (command retried if not zero)
+	bit  6		OUTPUT_READY?? (FIFO empty, write 16 words)
+	bit  7		INPUT_READY?? (FIFO full, read 16 words)
+	bit  8		???
+	bits 9-10	???
+	bit  11		???
+	bit  12		DATA_DONE (busywaited after data write to the card)
+	bit  13		CMD_DONE (busywaited after issuing command)
+	bits 14-15	???
+
+0x70008208	???
+
+0x70008210	UNKNOWN
+
+	bits 0-2	response type?? (0, 1, 2, 3)
+	bit  3		data direction?? (0 = read, 1 = write)
+	bits 4-7	??
+	bit  8		reset??
+	bits 9-15	??
+
+0x7000821c	BLOCK_SIZE_REG
+
+0x70008220	BLOCK_COUNT_REG (number of blocks to transfer in next command)
+
+0x70008224	???
+
+0x70008228	CMD_REG0 (command word)
+0x7000822c	CMD_REG1 (argument bits 16-31)
+0x70008230	CMD_REG2 (argument bits  0-15)
+
+0x70008234	RESPONSE_REG (3 or 8 16 bit words, msb read first)
+
+0x70008238	??? (related to the CURRENT_STATE of the card ???)
+
+0x70008240	???
+
+0x70008244	???
+
+0x70008280	DATA_REG (16 bits wide, 32 byte i.e. 16 * 16-bit word FIFOs)
+
+
+
+Sending command (CMD0 - CMDn)
+-----------------------------
+
+(If command has data transfer, write 0x70008238 and BLOCK_COUNT_REG
+ before sending the command, see examples below)
+
+1. Write command to CMD_REG0 - CMD_REG2
+2. Write UNKNOWN
+3. Busywait until CMD_DONE set in STATUS_REG
+4. If any of error bits set in STATUS_REG, retry from 1.
+
+
+Sending application specific command (ACMD0 - ACMDn)
+----------------------------------------------------
+
+1. Send standard CMD55 (arg=RCA<<16 (or zero if RCA not yet set), UNKNOWN=1)
+2. Read response (type=1)
+3. Send ACMD like any standard command
+
+
+Reading response
+----------------
+
+1. Read most significant 16bit word from RESPONSE_REG
+2. Loop to 1 until all read
+
+
+Reading/writing data
+--------------------
+
+1. Read/write DATA_REG
+2. Loop to 1 until done
+
+Original firmware uses a DMA engine for data transfers, although
+it does not seem in any way mandatory to do so. In fact for some
+reason even the original code does a small part of every write
+using PIO. The DMA engine setup is explained in its own document.
+
+
+
+Enable & init controller
+------------------------
+
+Set GPIO-G pins 5 and 6 enabled/output/one (high)
+
+Clear bit 2 at 0x70000088
+
+Clear bit 2 at 0x7000008c
+
+Set bit 2 at 0x70000080
+
+Set bit 2 at 0x70000084
+
+Write 6 to 0x70008208
+
+Clear bits 0-17 at 0x70000014
+
+Set bits 0-17 at 0x70000014 to 0x255aa
+
+Write 0x1010 to 0x70000034
+
+Set GPIO-A pin 7 enabled/input
+
+Set GPIO-D pins 0-4 enabled/output/one (high)
+
+Set bit 14 at 0x6000600c
+
+Set bit 14 at 0x60006004
+Clear bit 14 at 0x60006004	(reset controller?)
+
+Write 0 to 0x6000b000
+Write 0 to 0x6000a000	(Init DMA engine?)
+
+
+
+Init the NAND
+-------------
+
+Set bit 15 at 0x70008240
+Set bit 15 at 0x70008244
+
+Clear bits 12-13 at 0x70008244
+Set bit 13 at 0x70008244
+
+Clear bits 12-13 at 0x70008240
+Set bit 13 at 0x70008240	(maybe all these can be combined?)
+
+Write 4 to 0x70008238
+
+Write 15 (0xf) to 0x70008224
+
+Send CMD0 (GO_IDLE_STATE, arg=0, UNKNOWN=256)
+
+Send ACMD41 (SD_APP_OP_COND, arg=0x100000, UNKNOWN=3)
+
+Read response (type=3)
+
+If OCR == 0 -> FAILED!
+
+If OCR:31 not set -> retry from GO_IDLE_STATE
+
+Send CMD2 (ALL_SEND_CID, arg=0, UNKNOWN=2)
+
+Read response (type=2)
+
+Send CMD3 (SEND_RELATIVE_ADDR, arg=0, UNKNOWN=1)
+
+Read response (type=1)
+
+Store the RCA
+
+Send CMD9 (SEND_CSD, arg=RCA<<16, UNKNOWN=2)
+
+Read response (type=2)
+
+Parse disk geometry
+
+Write 0 to 0x70008208
+
+Send CMD7 (SELECT_CARD, arg=RCA<<16, UNKNOWN=129)
+
+Read response (type=1)
+
+Send ACMD6 (SET_BUS_WIDTH, arg=(RCA<<16)|2, UNKNOWN=1) // 4-bit
+
+Read response (type=1)
+
+Send CMD16 (SET_BLOCKLEN, arg=512, UNKNOWN=1)
+
+Read response (type=1)
+
+Write block size (512) to BLOCK_SIZE_REG
+
+If more than one memory bank
+
+	Write 4 to 0x70008238
+	Write 1 to BLOCK_COUNT_REG
+
+	Send CMD6 (SWITCH_FUNC, arg=0x80ffffef, UNKNOWN=0x1c05)
+	// select vendor specific commands
+
+	Read response (type=1)
+	Read card data (switch function status, 512 bytes)
+	// actually only 512 bits, but the SW is block based
+
+Init done
+
+
+
+*** The operations below are just for reference how the original
+*** code does it. There might be a better way!
+
+
+
+Erase
+-----
+
+Erase is done like the standard says. Only differences are
+switching to the correct bank before starting (if multiple
+banks available) and splitting the operation in parts if
+multiple banks are to be touched (i.e. erase first from
+start to the end of the bank, switch bank and erase rest).
+
+
+The operation iself goes like this:
+
+
+If multiple banks -> Switch to right bank
+
+Send CMD32 (ERASE_WR_BLK_START, arg=addr (in bytes), UKNOWN=1)
+
+Read response (type=1)
+
+Send CMD33 (ERASE_WR_BLK_END, arg=addr (in bytes), UNKNOWN=1)
+
+Read response (type=1)
+
+Send CMD38 (ERASE, arg=0, UNKNOWN=1)
+
+Read response (type=1)
+
+Wait until CURRENT_STATE in Card Status Register is 'tran' (4) (poll in a loop)
+
+If more to erase -> Switch bank and erase the rest
+
+Erase done
+
+
+
+Read
+----
+
+Read is done like with standard SD card. The only difference is
+the bank selection. The BL code does not have any special handling
+for reads crossing the bank border, so it is possible that the HW
+can jump from one bank to another automatically, but I'd be a bit
+uneasy if that such transfers were not explicitly split in two
+parts.
+
+Also the limit for the DMA is 128 blocks (64 kb), so if the transfer
+is longer than that it has to be split.
+
+
+Reading is done like this:
+
+
+If multiple banks -> Switch to right bank
+
+Write 4 to 0x70008238
+
+Write number of blocks to transfer to BLOCK_COUNT_REG
+
+Send CMD18 (READ_MULTIPLE_BLOCK, arg=addr (in bytes), UNKNOWN=0x1c25);
+
+Read response (type=1)
+
+Read card data
+
+Send CMD12 (STOP_TRANSMISSION, arg0=0, UNKNOWN=1)
+
+Read response (type=1)
+
+Wait until CURRENT_STATE in Card Status Register is 'tran' (4) (poll in a loop)
+
+If still blocks to transfer -> Continue from beginning
+
+Read done
+
+
+
+Write
+-----
+
+The same things apply to write as read (i.e. the bank limit and
+DMA size limit). Also for some reason the original BL code writes
+the last 16 bytes of each write with the CPU. The data up tp that
+point is written with DMA. I have no idea why it does this and
+if it is strictly necessary. Like in reading the code does not
+seem to have any special handling for crossing the bank boundary
+in the middle of the operation.
+
+
+Anyways, writing goes like this:
+
+
+If multiple banks -> Switch to right bank
+
+Wait until CURRENT_STATE in Card Status Register is 'tran' (4) (poll in a loop)
+
+Write 4 to 0x70008238
+
+Write number of blocks to transfer to BLOCK_COUNT_REG
+
+Send CMD25 (WRITE_MULTIPLE_BLOCK, arg=addr (in bytes), UNKNOWN=0x1c2d)
+
+Read response (type=1)
+
+Write card data (minus the 16 bytes)
+
+Write 7 to 0x70008238
+
+Write last 16 bytes of card data using CPU (16 bit at a time)
+
+Wait for DATA_DONE (waits max 0.5 sec, if timeout -> stop & retry write)
+
+Send CMD12 (STOP_TRANSMISSION, arg0=0, UNKNOWN=1)
+
+Read response (type=1)
+
+Wait until CURRENT_STATE in Card Status Register is 'tran' (4) (poll in a loop)
+
+If still blocks to write or retry -> Continue/Retry from beginning
+
+Write done
+
+
+
+Switch bank
+-----------
+
+If wanted bank already selected -> Switch done
+
+Wait until CURRENT_STATE in Card Status Register is 'tran' (4) (poll in a loop)
+
+Write 4 ('tran'?) to 0x70008238
+Write block size (512) to BLOCK_SIZE_REG
+Write 1 to BLOCK_COUNT_REG
+
+Send CMD35 (vendor specific command, arg=0, UNKNOWN=0x1c0d)
+
+Read response (type=1)
+
+Write 7 ('prg'?) to 0x70008238
+
+Write card data (512 bytes, bank number in the first byte, rest is zeros)
+
+Wait for DATA_DONE
+
+Store new bank number to a static variable
+
+Switch done
+
+
+
+
+DMA interface
+-------------
+
+** From v0.8 of this document onwards the DMA setup is moved to its
+** own document.
+
+
+
+
+That's all folks!
+
